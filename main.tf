@@ -151,6 +151,46 @@ resource "azurerm_public_ip" "ip" {
   sku                 = "Standard"
 }
 
+resource "azurerm_public_ip" "natIp" {
+  name                = var.natPublicIpName
+  resource_group_name = azurerm_resource_group.rg.name
+  location            = azurerm_resource_group.rg.location
+  allocation_method   = "Static"
+  sku                 = "Standard"
+}
+
+resource "azurerm_nat_gateway" "nat" {
+  name                    = var.privateNat
+  location                = azurerm_resource_group.rg.location
+  resource_group_name     = azurerm_resource_group.rg.name
+}
+
+resource "azurerm_nat_gateway_public_ip_association" "ipForNat" {
+  nat_gateway_id       = azurerm_nat_gateway.nat.id
+  public_ip_address_id = azurerm_public_ip.natIp.id
+}
+
+resource "azurerm_subnet_nat_gateway_association" "natForSubnet" {
+  subnet_id      = azurerm_subnet.privateSubnet.id
+  nat_gateway_id = azurerm_nat_gateway.nat.id
+}
+
+# resource "azurerm_route_table" "routes" {
+#   name                          = "routes"
+#   location                      = azurerm_resource_group.rg.location
+#   resource_group_name           = azurerm_resource_group.rg.name
+
+#   route {
+#     name           = "toPrivateSubnet"
+#     address_prefix = var.privateSubnet.cidr
+#     next_hop_type  = "vnetlocal"
+#   }
+# }
+
+# resource "azurerm_subnet_route_table_association" "publicSubnetRoutes" {
+#   subnet_id      = azurerm_subnet.publicSubnet.id
+#   route_table_id = azurerm_route_table.routes.id
+# }
 
 resource "azurerm_network_interface" "web1nic" {
   name                = "web1nic"

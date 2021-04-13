@@ -55,6 +55,18 @@ variable "privateSubnet" {
   description = "private subnet cidr, name and associated nsg name."
 }
 
+variable "natPublicIpName" {
+  type = string
+  description = "name for the public ip for the private subnet nat gateway."
+  default = "NatPublicIp"
+}
+
+variable "privateNat" {
+  type = string
+  description = "name for private subnet nat gateway."
+  default = "privateNat"
+}
+
 variable "publicLb" {
   default = {
       name = "publicLb"
