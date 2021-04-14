@@ -30,7 +30,7 @@ variable "vNet" {
 }
 
 variable "publicSubnet" {
-  description = "public subnet cidr, name and associated nsg name. eg-> name ='mysubenet' cidr = '10.0.1.0/28' nsgName = 'ndgForsubnet'"
+  description = "public subnet cidr, name and associated nsg name. eg-> name ='mysubenet' cidr = '10.0.1.0/28' nsgName = 'nsgForsubnet'"
   type        = map
 }
 
