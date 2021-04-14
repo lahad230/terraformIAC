@@ -190,31 +190,6 @@ resource "azurerm_subnet_nat_gateway_association" "natForSubnet" {
   nat_gateway_id = azurerm_nat_gateway.nat.id
 }
 
-#######Route tables######
-
-##not required for IAC to work#
-
-##route table for trafic form public sybnet to private subnet:
-# resource "azurerm_route_table" "routes" {
-#   name                          = "routes"
-#   location                      = azurerm_resource_group.rg.location
-#   resource_group_name           = azurerm_resource_group.rg.name
-
-#   route {
-#     name           = "toPrivateSubnet"
-#     address_prefix = var.privateSubnet.cidr
-#     next_hop_type  = "vnetlocal"
-#   }
-# }
-
-# resource "azurerm_subnet_route_table_association" "publicSubnetRoutes" {
-#   subnet_id      = azurerm_subnet.publicSubnet.id
-#   route_table_id = azurerm_route_table.routes.id
-# }
-
-
-
-
 ######VMs and NICs######
 
 #NIC for VM1 hosting web application:
@@ -230,7 +205,6 @@ resource "azurerm_network_interface" "web1nic" {
   }
 }
 
-
 #NIC for VM2 hosting web application:
 resource "azurerm_network_interface" "web2nic" {
   name                = "web2nic"
@@ -243,7 +217,6 @@ resource "azurerm_network_interface" "web2nic" {
     private_ip_address_allocation = "Dynamic"
   }
 }
-
 
 #NIC for VM1 hosting database:
 resource "azurerm_network_interface" "data1nic" {
@@ -272,115 +245,51 @@ resource "azurerm_network_interface" "data2nic" {
 }
 
 #VM1 hosting web application:
-resource "azurerm_linux_virtual_machine" "web1" {
-  name                = "web1"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  size                = var.vmSize
-  admin_username      = var.username
-  admin_password      = var.password
-
-  disable_password_authentication = false
-
-  network_interface_ids = [
-    azurerm_network_interface.web1nic.id,
-  ]
-
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "18.04-LTS"
-    version   = "latest"
-  }
+module "web1" {
+  source      = "./modules/linuxVm"
+  vm_name     = "web1"
+  rg_name     = azurerm_resource_group.rg.name
+  rg_location = azurerm_resource_group.rg.location
+  vm_size     = var.vmSize
+  vm_username = var.username
+  vm_password = var.password
+  nic_id      = azurerm_network_interface.web1nic.id
 }
 
 #VM2 hosting web application:
-resource "azurerm_linux_virtual_machine" "web2" {
-  name                = "web2"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  size                = var.vmSize
-  admin_username      = var.username  
-  admin_password      = var.password
-
-  disable_password_authentication = false
-
-  network_interface_ids = [
-    azurerm_network_interface.web2nic.id,
-  ]
-
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "18.04-LTS"
-    version   = "latest"
-  }
+module "web2" {
+  source      = "./modules/linuxVm"
+  vm_name     = "web2"
+  rg_name     = azurerm_resource_group.rg.name
+  rg_location = azurerm_resource_group.rg.location
+  vm_size     = var.vmSize
+  vm_username = var.username
+  vm_password = var.password
+  nic_id      = azurerm_network_interface.web2nic.id
 }
-
+ 
 #VM1 hosting database:
-resource "azurerm_linux_virtual_machine" "data1" {
-  name                = "data1"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  size                = var.vmSize
-  admin_username      = var.username
-  admin_password      = var.password
-
-  disable_password_authentication = false
-  
-  network_interface_ids = [
-    azurerm_network_interface.data1nic.id,
-  ]
-
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "18.04-LTS"
-    version   = "latest"
-  }
+module "data1" {
+  source      = "./modules/linuxVm"
+  vm_name     = "data1"
+  rg_name     = azurerm_resource_group.rg.name
+  rg_location = azurerm_resource_group.rg.location
+  vm_size     = var.vmSize
+  vm_username = var.username
+  vm_password = var.password
+  nic_id      = azurerm_network_interface.data1nic.id
 }
 
 #VM2 hosting database:
-resource "azurerm_linux_virtual_machine" "data2" {
-  name                = "data2"
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  size                = var.vmSize
-  admin_username      = var.username
-  admin_password      = var.password
-
-  disable_password_authentication = false
-  
-  network_interface_ids = [
-    azurerm_network_interface.data2nic.id,
-  ]
-
-  os_disk {
-    caching              = "ReadWrite"
-    storage_account_type = "Standard_LRS"
-  }
-
-  source_image_reference {
-    publisher = "Canonical"
-    offer     = "UbuntuServer"
-    sku       = "18.04-LTS"
-    version   = "latest"
-  }
+module "data2" {
+  source      = "./modules/linuxVm"
+  vm_name     = "data2"
+  rg_name     = azurerm_resource_group.rg.name
+  rg_location = azurerm_resource_group.rg.location
+  vm_size     = var.vmSize
+  vm_username = var.username
+  vm_password = var.password
+  nic_id      = azurerm_network_interface.data2nic.id
 }
 
 ###########Load balancers, probes, pools and rules############
