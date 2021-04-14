@@ -35,27 +35,26 @@ variable "publicSubnet" {
 }
 
 variable "privateSubnet" {
-  type        = map
   description = "private subnet cidr, name and associated nsg name."
+  type        = map
 }
 
 variable "privateNat" {
-  type        = string
   description = "name for private subnet nat gateway."
-
+  type        = string
 }
 
 variable "natPublicIpName" {
-  type        = string
   description = "name for the public ip for the private subnet nat gateway."
+  type        = string
 }
 
 variable "publicLb" {
-  type        = map
   description = "public load balancer details (name, front ip name and public ip name). eg-> name = 'publicLb' ipName = 'lbIp' frontIpName = 'lbForntIp'"
+  type        = map
 }
 
 variable "privateLb" {
-  type        = map
   description = "private load balancer details (name, front ip name, private ip[remember: private ip depandes on the private subnet cidr] eg-> name = 'privateLb' frontIpName = 'privateFront' privateIp = '10.0.1.10')."
+  type        = map
 }
