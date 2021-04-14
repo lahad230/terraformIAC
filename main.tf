@@ -2,13 +2,9 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "=2.55.0"
+      version = ">=2.46.0"
     }
   }
-}
-
-provider "azurerm" {
-  features {}
 }
 
 resource "azurerm_resource_group" "rg" {
@@ -16,6 +12,33 @@ resource "azurerm_resource_group" "rg" {
   location = var.location
 }
 
+#######Vnets, subnets and nsgs#######
+
+#main vnet:
+resource "azurerm_virtual_network" "vnet" {
+  name                = var.vNet.name
+  address_space       = [var.vNet.cidr]
+  location            = azurerm_resource_group.rg.location
+  resource_group_name = azurerm_resource_group.rg.name
+}
+
+#public subnet:
+resource "azurerm_subnet" "publicSubnet" {
+  name                 = var.publicSubnet.name
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = [var.publicSubnet.cidr]
+}
+
+#private subnet:
+resource "azurerm_subnet" "privateSubnet" {
+  name                 = var.privateSubnet.name
+  resource_group_name  = azurerm_resource_group.rg.name
+  virtual_network_name = azurerm_virtual_network.vnet.name
+  address_prefixes     = [var.privateSubnet.cidr]
+}
+
+#public subnet's nsg:
 resource "azurerm_network_security_group" "web" {
   name                = var.publicSubnet.nsgName
   location            = azurerm_resource_group.rg.location
@@ -70,6 +93,13 @@ resource "azurerm_network_security_group" "web" {
   }
 }
 
+#public subnet nsg association:
+resource "azurerm_subnet_network_security_group_association" "publicNsg" {
+  subnet_id                 = azurerm_subnet.publicSubnet.id
+  network_security_group_id = azurerm_network_security_group.web.id
+}
+
+#private subnet's nsg:
 resource "azurerm_network_security_group" "data" {
   name                = var.privateSubnet.nsgName
   location            = azurerm_resource_group.rg.location
@@ -112,37 +142,16 @@ resource "azurerm_network_security_group" "data" {
   }
 }
 
-resource "azurerm_virtual_network" "vnet" {
-  name                = var.vNet.name
-  address_space       = [var.vNet.cidr]
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-}
-
-resource "azurerm_subnet" "publicSubnet" {
-  name                 = var.publicSubnet.name
-  resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = [var.publicSubnet.cidr]
-}
-
-resource "azurerm_subnet" "privateSubnet" {
-  name                 = var.privateSubnet.name
-  resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = [var.privateSubnet.cidr]
-}
-
-resource "azurerm_subnet_network_security_group_association" "publicNsg" {
-  subnet_id                 = azurerm_subnet.publicSubnet.id
-  network_security_group_id = azurerm_network_security_group.web.id
-}
-
+#private subnet nsg association:
 resource "azurerm_subnet_network_security_group_association" "privateNsg" {
   subnet_id                 = azurerm_subnet.privateSubnet.id
   network_security_group_id = azurerm_network_security_group.data.id
 }
 
+
+##########Public ips##########
+
+#public load balancer ip:
 resource "azurerm_public_ip" "ip" {
   name                = var.publicLb.ipName
   resource_group_name = azurerm_resource_group.rg.name
@@ -151,6 +160,7 @@ resource "azurerm_public_ip" "ip" {
   sku                 = "Standard"
 }
 
+#private subnet's nat gateway public ip:
 resource "azurerm_public_ip" "natIp" {
   name                = var.natPublicIpName
   resource_group_name = azurerm_resource_group.rg.name
@@ -159,22 +169,32 @@ resource "azurerm_public_ip" "natIp" {
   sku                 = "Standard"
 }
 
+#######Nat gateways##########
+
+#Private subnet's nat gateway:
 resource "azurerm_nat_gateway" "nat" {
   name                    = var.privateNat
   location                = azurerm_resource_group.rg.location
   resource_group_name     = azurerm_resource_group.rg.name
 }
 
+#Nat gateway and public ip association:
 resource "azurerm_nat_gateway_public_ip_association" "ipForNat" {
   nat_gateway_id       = azurerm_nat_gateway.nat.id
   public_ip_address_id = azurerm_public_ip.natIp.id
 }
 
+#Nat gateway and private subnet association:
 resource "azurerm_subnet_nat_gateway_association" "natForSubnet" {
   subnet_id      = azurerm_subnet.privateSubnet.id
   nat_gateway_id = azurerm_nat_gateway.nat.id
 }
 
+#######Route tables######
+
+##not required for IAC to work#
+
+##route table for trafic form public sybnet to private subnet:
 # resource "azurerm_route_table" "routes" {
 #   name                          = "routes"
 #   location                      = azurerm_resource_group.rg.location
@@ -192,6 +212,12 @@ resource "azurerm_subnet_nat_gateway_association" "natForSubnet" {
 #   route_table_id = azurerm_route_table.routes.id
 # }
 
+
+
+
+######VMs and NICs######
+
+#NIC for VM1 hosting web application:
 resource "azurerm_network_interface" "web1nic" {
   name                = "web1nic"
   location            = azurerm_resource_group.rg.location
@@ -204,6 +230,8 @@ resource "azurerm_network_interface" "web1nic" {
   }
 }
 
+
+#NIC for VM2 hosting web application:
 resource "azurerm_network_interface" "web2nic" {
   name                = "web2nic"
   location            = azurerm_resource_group.rg.location
@@ -216,6 +244,8 @@ resource "azurerm_network_interface" "web2nic" {
   }
 }
 
+
+#NIC for VM1 hosting database:
 resource "azurerm_network_interface" "data1nic" {
   name                = "data1nic"
   location            = azurerm_resource_group.rg.location
@@ -228,6 +258,7 @@ resource "azurerm_network_interface" "data1nic" {
   }
 }
 
+#NIC for VM2 hosting database:
 resource "azurerm_network_interface" "data2nic" {
   name                = "data2nic"
   location            = azurerm_resource_group.rg.location
@@ -240,6 +271,7 @@ resource "azurerm_network_interface" "data2nic" {
   }
 }
 
+#VM1 hosting web application:
 resource "azurerm_linux_virtual_machine" "web1" {
   name                = "web1"
   resource_group_name = azurerm_resource_group.rg.name
@@ -267,6 +299,7 @@ resource "azurerm_linux_virtual_machine" "web1" {
   }
 }
 
+#VM2 hosting web application:
 resource "azurerm_linux_virtual_machine" "web2" {
   name                = "web2"
   resource_group_name = azurerm_resource_group.rg.name
@@ -294,6 +327,7 @@ resource "azurerm_linux_virtual_machine" "web2" {
   }
 }
 
+#VM1 hosting database:
 resource "azurerm_linux_virtual_machine" "data1" {
   name                = "data1"
   resource_group_name = azurerm_resource_group.rg.name
@@ -321,6 +355,7 @@ resource "azurerm_linux_virtual_machine" "data1" {
   }
 }
 
+#VM2 hosting database:
 resource "azurerm_linux_virtual_machine" "data2" {
   name                = "data2"
   resource_group_name = azurerm_resource_group.rg.name
@@ -348,6 +383,9 @@ resource "azurerm_linux_virtual_machine" "data2" {
   }
 }
 
+###########Load balancers, probes, pools and rules############
+
+#public load balancer:
 resource "azurerm_lb" "publicLb" {
   name                = var.publicLb.name
   location            = azurerm_resource_group.rg.location
@@ -360,11 +398,13 @@ resource "azurerm_lb" "publicLb" {
   }
 }
 
+#public load balancer backend pool:
 resource "azurerm_lb_backend_address_pool" "publicLbPool" {
   loadbalancer_id = azurerm_lb.publicLb.id
   name            = "frontEndAddressPool"
 }
 
+#public load balancer pool associations:
 resource "azurerm_network_interface_backend_address_pool_association" "web1Pool" {
   network_interface_id    = azurerm_network_interface.web1nic.id
   ip_configuration_name   = azurerm_network_interface.web1nic.ip_configuration[0].name
@@ -377,6 +417,7 @@ resource "azurerm_network_interface_backend_address_pool_association" "web2Pool"
   backend_address_pool_id = azurerm_lb_backend_address_pool.publicLbPool.id
 }
 
+#public load balancer outbound rule:
 resource "azurerm_lb_outbound_rule" "publicLbOutbound" {
   resource_group_name     = azurerm_resource_group.rg.name
   loadbalancer_id         = azurerm_lb.publicLb.id
@@ -389,6 +430,7 @@ resource "azurerm_lb_outbound_rule" "publicLbOutbound" {
   }
 }
 
+#public load balancer probe(health checks):
 resource "azurerm_lb_probe" "publicLbProbe" {
   resource_group_name = azurerm_resource_group.rg.name
   loadbalancer_id     = azurerm_lb.publicLb.id
@@ -396,6 +438,7 @@ resource "azurerm_lb_probe" "publicLbProbe" {
   port                = 8080
 }
 
+#public load balancer load balancing rule:
 resource "azurerm_lb_rule" "publicLbRule" {
   resource_group_name            = azurerm_resource_group.rg.name
   loadbalancer_id                = azurerm_lb.publicLb.id
@@ -409,6 +452,7 @@ resource "azurerm_lb_rule" "publicLbRule" {
   probe_id                       = azurerm_lb_probe.publicLbProbe.id
 }
 
+#private load balancer:
 resource "azurerm_lb" "privateLb" {
   name                = var.privateLb.name
   location            = azurerm_resource_group.rg.location
@@ -423,11 +467,13 @@ resource "azurerm_lb" "privateLb" {
   }
 }
 
+#private load balancer backend pool:
 resource "azurerm_lb_backend_address_pool" "privateLbPool" {
   loadbalancer_id = azurerm_lb.privateLb.id
   name            = "backEndAddressPool"
 }
 
+#private load balancer pool associations:
 resource "azurerm_network_interface_backend_address_pool_association" "data1Pool" {
   network_interface_id    = azurerm_network_interface.data1nic.id
   ip_configuration_name   = azurerm_network_interface.data1nic.ip_configuration[0].name
@@ -440,6 +486,7 @@ resource "azurerm_network_interface_backend_address_pool_association" "data2Pool
   backend_address_pool_id = azurerm_lb_backend_address_pool.privateLbPool.id
 }
 
+#private load balancer probe(health checks):
 resource "azurerm_lb_probe" "privateLbProbe" {
   resource_group_name = azurerm_resource_group.rg.name
   loadbalancer_id     = azurerm_lb.privateLb.id
@@ -447,6 +494,7 @@ resource "azurerm_lb_probe" "privateLbProbe" {
   port                = 5432
 }
 
+#private load balancer load balancing rule:
 resource "azurerm_lb_rule" "privateLbRule" {
   resource_group_name            = azurerm_resource_group.rg.name
   loadbalancer_id                = azurerm_lb.privateLb.id
