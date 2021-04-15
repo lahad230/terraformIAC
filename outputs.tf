@@ -1,4 +1,4 @@
 output "vmPassword" {
     description = "admin password for the vms"
-    value       = module.web1.vmPassword
+    value       = module.web[0].vmPassword
 }

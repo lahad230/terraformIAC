@@ -30,13 +30,23 @@ variable "vNet" {
 }
 
 variable "publicSubnet" {
-  description = "public subnet cidr, name and associated nsg name. eg-> name ='mysubenet' cidr = '10.0.1.0/28' nsgName = 'nsgForsubnet'"
+  description = "public subnet cidr and name. eg-> name ='mysubenet' cidr = '10.0.1.0/28'"
   type        = map
 }
 
 variable "privateSubnet" {
-  description = "private subnet cidr, name and associated nsg name."
+  description = "private subnet cidr and name. eg-> name ='mysubenet' cidr = '10.0.1.0/28'"
   type        = map
+}
+
+variable "privateNsg" {
+  description = "name of the nsg associated with private subnet"
+  type = string
+}
+
+variable "publicNsg" {
+  description = "name of the nsg associated with public subnet"
+  type = string
 }
 
 variable "privateNat" {
@@ -44,17 +54,37 @@ variable "privateNat" {
   type        = string
 }
 
-variable "natPublicIpName" {
-  description = "name for the public ip for the private subnet nat gateway."
-  type        = string
-}
-
 variable "publicLb" {
-  description = "public load balancer details (name, front ip name and public ip name). eg-> name = 'publicLb' ipName = 'lbIp' frontIpName = 'lbForntIp'"
+  description = "public load balancer details (name and front ip name). eg-> name = 'publicLb' frontIpName = 'lbForntIp'"
   type        = map
 }
 
 variable "privateLb" {
   description = "private load balancer details (name, front ip name, private ip[remember: private ip depandes on the private subnet cidr] eg-> name = 'privateLb' frontIpName = 'privateFront' privateIp = '10.0.1.10')."
   type        = map
+}
+
+variable "numOfIps" {
+  description = "number of public ips for the project"
+  type = number
+}
+
+variable "numOfPublicVms" {
+  description = "number of vms on the public subnet"
+  type        = number
+}
+
+variable "numOfPrivateVms" {
+  description = "number of vms on the private subnet"
+  type        = number
+}
+
+variable "webNsgPorts" {
+  description = "list of ports open on the public subnet's nsg"
+  type = list
+}
+
+variable "dataNsgPorts" {
+  description = "list of ports open on the private subnet's nsg"
+  type = list
 }

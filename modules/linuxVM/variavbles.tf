@@ -29,7 +29,17 @@ variable "vm_password" {
   description = "admin password for the vm"
 }
 
-variable "nic_id" {
+variable "nic_name" {
   type        = string
-  description = "id of the nic associated to this vm"
+  description = "name of the nic"
+}
+
+variable "nic_conf_name" {
+  type        = string
+  description = "nic's ip configuration name"
+}
+
+variable "subnet_id" {
+  type        = string
+  description = "id of the subnet associated with the nic"
 }

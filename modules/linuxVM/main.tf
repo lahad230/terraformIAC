@@ -2,6 +2,18 @@ terraform {
   required_version = ">=0.14.10"
 }
 
+resource "azurerm_network_interface" "nic" {
+  name                = var.nic_name
+  location            = var.rg_location
+  resource_group_name = var.rg_name
+
+  ip_configuration {
+    name                          = var.nic_conf_name
+    subnet_id                     = var.subnet_id
+    private_ip_address_allocation = "Dynamic"
+  }
+}
+
 resource "azurerm_linux_virtual_machine" "Vm" {
   name                = var.vm_name
   resource_group_name = var.rg_name
@@ -13,7 +25,7 @@ resource "azurerm_linux_virtual_machine" "Vm" {
   disable_password_authentication = false
   
   network_interface_ids = [
-    var.nic_id
+    azurerm_network_interface.nic.id
   ]
 
   os_disk {
