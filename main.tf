@@ -7,87 +7,31 @@ terraform {
   }
 }
 
-resource "azurerm_resource_group" "rg" {
-  name     = var.resourceGroupName
-  location = var.location
-}
+#######Rg,Vnets, subnets and nsgs#######
 
-#######Vnets, subnets and nsgs#######
-
-#main vnet:
-resource "azurerm_virtual_network" "vnet" {
-  name                = var.vNet.name
-  address_space       = [var.vNet.cidr]
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-}
-
-#public subnet:
-resource "azurerm_subnet" "publicSubnet" {
-  name                 = var.publicSubnet.name
-  resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = [var.publicSubnet.cidr]
-}
-
-#private subnet:
-resource "azurerm_subnet" "privateSubnet" {
-  name                 = var.privateSubnet.name
-  resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = [var.privateSubnet.cidr]
+module "projBase" {
+  source = "./modules/projBase"
+  resourceGroupName = var.resourceGroupName
+  location          = var.location
+  vNet              = var.vNet 
+  publicSubnet      = var.publicSubnet
+  privateSubnet     = var.privateSubnet  
 }
 
 #public subnet's nsg:
 resource "azurerm_network_security_group" "web" {
-  name                = var.publicSubnet.nsgName
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  name                = var.publicNsg
+  location            = module.projBase.rg_location
+  resource_group_name = module.projBase.rg_name
 
   security_rule { 
-    name                       = "8080"
+    name                       = "ports"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "*"
     source_port_range          = "*"
-    destination_port_range     = "8080"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "ssh"
-    priority                   = 110
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "*"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  security_rule{
-    name                       = "http"
-    priority                   = 200
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "*"
-    source_port_range          = "*"
-    destination_port_range     = "80"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-  
-  security_rule{
-    name                       = "https"
-    priority                   = 300
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "*"
-    source_port_range          = "*"
-    destination_port_range     = "443"
+    destination_port_ranges    = var.webNsgPorts
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
@@ -95,48 +39,24 @@ resource "azurerm_network_security_group" "web" {
 
 #public subnet nsg association:
 resource "azurerm_subnet_network_security_group_association" "publicNsg" {
-  subnet_id                 = azurerm_subnet.publicSubnet.id
+  subnet_id                 = module.projBase.public_subnet_id
   network_security_group_id = azurerm_network_security_group.web.id
 }
 
 #private subnet's nsg:
 resource "azurerm_network_security_group" "data" {
-  name                = var.privateSubnet.nsgName
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  name                = var.privateNsg
+  location            = module.projBase.rg_location
+  resource_group_name = module.projBase.rg_name
 
   security_rule {
-    name                       = "postgre"
+    name                       = "ports"
     priority                   = 100
     direction                  = "Inbound"
     access                     = "Allow"
     protocol                   = "*"
     source_port_range          = "*"
-    destination_port_range     = "5432"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  security_rule {
-    name                       = "ssh"
-    priority                   = 110
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "*"
-    source_port_range          = "*"
-    destination_port_range     = "22"
-    source_address_prefix      = "*"
-    destination_address_prefix = "*"
-  }
-
-  security_rule{
-    name                       = "https"
-    priority                   = 300
-    direction                  = "Inbound"
-    access                     = "Allow"
-    protocol                   = "*"
-    source_port_range          = "*"
-    destination_port_range     = "443"
+    destination_port_ranges    = var.dataNsgPorts
     source_address_prefix      = "*"
     destination_address_prefix = "*"
   }
@@ -144,27 +64,18 @@ resource "azurerm_network_security_group" "data" {
 
 #private subnet nsg association:
 resource "azurerm_subnet_network_security_group_association" "privateNsg" {
-  subnet_id                 = azurerm_subnet.privateSubnet.id
+  subnet_id                 = module.projBase.private_subnet_id
   network_security_group_id = azurerm_network_security_group.data.id
 }
-
 
 ##########Public ips##########
 
 #public load balancer ip:
 resource "azurerm_public_ip" "ip" {
-  name                = var.publicLb.ipName
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
-  allocation_method   = "Static"
-  sku                 = "Standard"
-}
-
-#private subnet's nat gateway public ip:
-resource "azurerm_public_ip" "natIp" {
-  name                = var.natPublicIpName
-  resource_group_name = azurerm_resource_group.rg.name
-  location            = azurerm_resource_group.rg.location
+  count               = var.numOfIps
+  name                = "ip${count.index}"
+  resource_group_name = module.projBase.rg_name
+  location            = module.projBase.rg_location
   allocation_method   = "Static"
   sku                 = "Standard"
 }
@@ -174,122 +85,51 @@ resource "azurerm_public_ip" "natIp" {
 #Private subnet's nat gateway:
 resource "azurerm_nat_gateway" "nat" {
   name                    = var.privateNat
-  location                = azurerm_resource_group.rg.location
-  resource_group_name     = azurerm_resource_group.rg.name
+  location                = module.projBase.rg_location
+  resource_group_name     = module.projBase.rg_name
 }
 
 #Nat gateway and public ip association:
 resource "azurerm_nat_gateway_public_ip_association" "ipForNat" {
   nat_gateway_id       = azurerm_nat_gateway.nat.id
-  public_ip_address_id = azurerm_public_ip.natIp.id
+  public_ip_address_id = azurerm_public_ip.ip[0].id
 }
 
 #Nat gateway and private subnet association:
 resource "azurerm_subnet_nat_gateway_association" "natForSubnet" {
-  subnet_id      = azurerm_subnet.privateSubnet.id
+  subnet_id      = module.projBase.private_subnet_id
   nat_gateway_id = azurerm_nat_gateway.nat.id
 }
 
 ######VMs and NICs######
-
-#NIC for VM1 hosting web application:
-resource "azurerm_network_interface" "web1nic" {
-  name                = "web1nic"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  ip_configuration {
-    name                          = "web1conf"
-    subnet_id                     = azurerm_subnet.publicSubnet.id
-    private_ip_address_allocation = "Dynamic"
-  }
-}
-
-#NIC for VM2 hosting web application:
-resource "azurerm_network_interface" "web2nic" {
-  name                = "web2nic"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  ip_configuration {
-    name                          = "web2conf"
-    subnet_id                     = azurerm_subnet.publicSubnet.id
-    private_ip_address_allocation = "Dynamic"
-  }
-}
-
-#NIC for VM1 hosting database:
-resource "azurerm_network_interface" "data1nic" {
-  name                = "data1nic"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  ip_configuration {
-    name                          = "data1conf"
-    subnet_id                     = azurerm_subnet.privateSubnet.id
-    private_ip_address_allocation = "Dynamic"
-  }
-}
-
-#NIC for VM2 hosting database:
-resource "azurerm_network_interface" "data2nic" {
-  name                = "data2nic"
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
-
-  ip_configuration {
-    name                          = "data2conf"
-    subnet_id                     = azurerm_subnet.privateSubnet.id
-    private_ip_address_allocation = "Dynamic"
-  }
-}
-
-#VM1 hosting web application:
-module "web1" {
-  source      = "./modules/linuxVm"
-  vm_name     = "web1"
-  rg_name     = azurerm_resource_group.rg.name
-  rg_location = azurerm_resource_group.rg.location
-  vm_size     = var.vmSize
-  vm_username = var.username
-  vm_password = var.password
-  nic_id      = azurerm_network_interface.web1nic.id
-}
-
-#VM2 hosting web application:
-module "web2" {
-  source      = "./modules/linuxVm"
-  vm_name     = "web2"
-  rg_name     = azurerm_resource_group.rg.name
-  rg_location = azurerm_resource_group.rg.location
-  vm_size     = var.vmSize
-  vm_username = var.username
-  vm_password = var.password
-  nic_id      = azurerm_network_interface.web2nic.id
+#VMs and nics hosting web application:
+module "web" {
+  source        = "./modules/linuxVm"
+  count         = var.numOfPublicVms
+  vm_name       = "web${count.index}"
+  rg_name       = module.projBase.rg_name
+  rg_location   = module.projBase.rg_location
+  vm_size       = var.vmSize
+  vm_username   = var.username
+  vm_password   = var.password
+  nic_name      = "webNic${count.index}"
+  nic_conf_name = "webConf${count.index}"
+  subnet_id     = module.projBase.public_subnet_id
 }
  
-#VM1 hosting database:
-module "data1" {
-  source      = "./modules/linuxVm"
-  vm_name     = "data1"
-  rg_name     = azurerm_resource_group.rg.name
-  rg_location = azurerm_resource_group.rg.location
-  vm_size     = var.vmSize
-  vm_username = var.username
-  vm_password = var.password
-  nic_id      = azurerm_network_interface.data1nic.id
-}
-
-#VM2 hosting database:
-module "data2" {
-  source      = "./modules/linuxVm"
-  vm_name     = "data2"
-  rg_name     = azurerm_resource_group.rg.name
-  rg_location = azurerm_resource_group.rg.location
-  vm_size     = var.vmSize
-  vm_username = var.username
-  vm_password = var.password
-  nic_id      = azurerm_network_interface.data2nic.id
+#VMs and nics hosting database:
+module "data" {
+  source        = "./modules/linuxVm"
+  count         = var.numOfPrivateVms
+  vm_name       = "data${count.index}"
+  rg_name       = module.projBase.rg_name
+  rg_location   = module.projBase.rg_location
+  vm_size       = var.vmSize
+  vm_username   = var.username
+  vm_password   = var.password
+  nic_name      = "dataNic${count.index}"
+  nic_conf_name = "dataConf${count.index}"
+  subnet_id     = module.projBase.private_subnet_id
 }
 
 ###########Load balancers, probes, pools and rules############
@@ -297,13 +137,13 @@ module "data2" {
 #public load balancer:
 resource "azurerm_lb" "publicLb" {
   name                = var.publicLb.name
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = module.projBase.rg_location
+  resource_group_name = module.projBase.rg_name
   sku                 = "Standard"
 
   frontend_ip_configuration {
     name                 = var.publicLb.frontIpName
-    public_ip_address_id = azurerm_public_ip.ip.id
+    public_ip_address_id = azurerm_public_ip.ip[1].id
   }
 }
 
@@ -315,20 +155,20 @@ resource "azurerm_lb_backend_address_pool" "publicLbPool" {
 
 #public load balancer pool associations:
 resource "azurerm_network_interface_backend_address_pool_association" "web1Pool" {
-  network_interface_id    = azurerm_network_interface.web1nic.id
-  ip_configuration_name   = azurerm_network_interface.web1nic.ip_configuration[0].name
+  network_interface_id    = module.web[0].nic_id
+  ip_configuration_name   = module.web[0].nic_if_conf_name
   backend_address_pool_id = azurerm_lb_backend_address_pool.publicLbPool.id
 }
 
 resource "azurerm_network_interface_backend_address_pool_association" "web2Pool" {
-  network_interface_id    = azurerm_network_interface.web2nic.id
-  ip_configuration_name   = azurerm_network_interface.web2nic.ip_configuration[0].name
+  network_interface_id    = module.web[1].nic_id
+  ip_configuration_name   = module.web[1].nic_if_conf_name
   backend_address_pool_id = azurerm_lb_backend_address_pool.publicLbPool.id
 }
 
 #public load balancer outbound rule:
 resource "azurerm_lb_outbound_rule" "publicLbOutbound" {
-  resource_group_name     = azurerm_resource_group.rg.name
+  resource_group_name     = module.projBase.rg_name
   loadbalancer_id         = azurerm_lb.publicLb.id
   name                    = "OutboundRule"
   protocol                = "Tcp"
@@ -341,7 +181,7 @@ resource "azurerm_lb_outbound_rule" "publicLbOutbound" {
 
 #public load balancer probe(health checks):
 resource "azurerm_lb_probe" "publicLbProbe" {
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = module.projBase.rg_name
   loadbalancer_id     = azurerm_lb.publicLb.id
   name                = "8080-running-probe"
   port                = 8080
@@ -349,7 +189,7 @@ resource "azurerm_lb_probe" "publicLbProbe" {
 
 #public load balancer load balancing rule:
 resource "azurerm_lb_rule" "publicLbRule" {
-  resource_group_name            = azurerm_resource_group.rg.name
+  resource_group_name            = module.projBase.rg_name
   loadbalancer_id                = azurerm_lb.publicLb.id
   name                           = "PublicLBRule"
   protocol                       = "Tcp"
@@ -364,15 +204,15 @@ resource "azurerm_lb_rule" "publicLbRule" {
 #private load balancer:
 resource "azurerm_lb" "privateLb" {
   name                = var.privateLb.name
-  location            = azurerm_resource_group.rg.location
-  resource_group_name = azurerm_resource_group.rg.name
+  location            = module.projBase.rg_location
+  resource_group_name = module.projBase.rg_name
   sku                 = "Standard"
 
   frontend_ip_configuration {
-    name                 = var.privateLb.frontIpName
-    subnet_id = azurerm_subnet.privateSubnet.id
+    name                          = var.privateLb.frontIpName
+    subnet_id                     = module.projBase.private_subnet_id
     private_ip_address_allocation = "Static"
-    private_ip_address = var.privateLb.privateIp
+    private_ip_address            = var.privateLb.privateIp
   }
 }
 
@@ -384,20 +224,20 @@ resource "azurerm_lb_backend_address_pool" "privateLbPool" {
 
 #private load balancer pool associations:
 resource "azurerm_network_interface_backend_address_pool_association" "data1Pool" {
-  network_interface_id    = azurerm_network_interface.data1nic.id
-  ip_configuration_name   = azurerm_network_interface.data1nic.ip_configuration[0].name
+  network_interface_id    = module.data[0].nic_id
+  ip_configuration_name   = module.data[0].nic_if_conf_name
   backend_address_pool_id = azurerm_lb_backend_address_pool.privateLbPool.id
 }
 
 resource "azurerm_network_interface_backend_address_pool_association" "data2Pool" {
-  network_interface_id    = azurerm_network_interface.data2nic.id
-  ip_configuration_name   = azurerm_network_interface.data2nic.ip_configuration[0].name
+  network_interface_id    = module.data[1].nic_id
+  ip_configuration_name   = module.data[1].nic_if_conf_name
   backend_address_pool_id = azurerm_lb_backend_address_pool.privateLbPool.id
 }
 
 #private load balancer probe(health checks):
 resource "azurerm_lb_probe" "privateLbProbe" {
-  resource_group_name = azurerm_resource_group.rg.name
+  resource_group_name = module.projBase.rg_name
   loadbalancer_id     = azurerm_lb.privateLb.id
   name                = "5432-running-probe"
   port                = 5432
@@ -405,7 +245,7 @@ resource "azurerm_lb_probe" "privateLbProbe" {
 
 #private load balancer load balancing rule:
 resource "azurerm_lb_rule" "privateLbRule" {
-  resource_group_name            = azurerm_resource_group.rg.name
+  resource_group_name            = module.projBase.rg_name
   loadbalancer_id                = azurerm_lb.privateLb.id
   name                           = "privateLBRule"
   protocol                       = "Tcp"
