@@ -39,4 +39,28 @@ resource "azurerm_linux_virtual_machine" "Vm" {
     sku       = "18.04-LTS"
     version   = "latest"
   }
+
+  provisioner "file" {
+    source      = "../../../scripts/front.sh"
+    destination = "/tmp/front.sh"
+
+    connection {
+      type     = "ssh"
+      user     = var.vm_name
+      password = var.vm_password
+      host     = var.host
+    }
+  }
+
+  provisioner "remote-exec" {
+    inline = [
+      "bash /tmp/front.sh -u dev-60980327.okta.com -i 0oac1bu11EHLMiOZt5d6 -s Xaf6-PZ4CnPn847fqkLnKnPWQ_L4LQh1Kl5fEG2e -h ${var.fqdn} -p p@ssw0rd42"
+    ]
+    connection {
+      type     = "ssh"
+      user     = var.vm_name
+      password = var.vm_password
+      host     = var.host
+    }
+  }
 }

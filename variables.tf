@@ -98,3 +98,13 @@ variable "backPort" {
   description = "main port for private parts"
   type = number
 }
+
+variable "postgresUser" {
+  description = "postgres username"
+  type        = string
+}
+
+variable "postgresPassword" {
+  description = "password for postgresql"
+  type        = string
+}

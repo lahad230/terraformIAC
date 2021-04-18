@@ -43,3 +43,12 @@ variable "subnet_id" {
   type        = string
   description = "id of the subnet associated with the nic"
 }
+
+variable "fqdn"{
+  type        = string
+  description = "fqdn of the postgres db"
+}
+
+variable "host" {
+  type = string
+}

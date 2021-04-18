@@ -18,7 +18,7 @@ output "public_subnet_id" {
     value       = azurerm_subnet.publicSubnet.id
 }
 
-output "private_subnet_id" {
-    description = "id of the public subnet"
-    value       = azurerm_subnet.privateSubnet.id
-}
+# output "private_subnet_id" {
+#     description = "id of the public subnet"
+#     value       = azurerm_subnet.privateSubnet.id
+# }

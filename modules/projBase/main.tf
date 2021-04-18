@@ -23,12 +23,13 @@ resource "azurerm_subnet" "publicSubnet" {
   resource_group_name  = azurerm_resource_group.rg.name
   virtual_network_name = azurerm_virtual_network.vnet.name
   address_prefixes     = [var.publicSubnet.cidr]
+  service_endpoints    = ["Microsoft.Sql"]
 }
 
 #private subnet:
-resource "azurerm_subnet" "privateSubnet" {
-  name                 = var.privateSubnet.name
-  resource_group_name  = azurerm_resource_group.rg.name
-  virtual_network_name = azurerm_virtual_network.vnet.name
-  address_prefixes     = [var.privateSubnet.cidr]
-}
+# resource "azurerm_subnet" "privateSubnet" {
+#   name                 = var.privateSubnet.name
+#   resource_group_name  = azurerm_resource_group.rg.name
+#   virtual_network_name = azurerm_virtual_network.vnet.name
+#   address_prefixes     = [var.privateSubnet.cidr]
+# }
