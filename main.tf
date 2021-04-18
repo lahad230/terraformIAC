@@ -184,7 +184,7 @@ resource "azurerm_lb_probe" "publicLbProbe" {
   resource_group_name = module.projBase.rg_name
   loadbalancer_id     = azurerm_lb.publicLb.id
   name                = "8080-running-probe"
-  port                = 8080
+  port                = var.frontPort
 }
 
 #public load balancer load balancing rule:
@@ -193,8 +193,8 @@ resource "azurerm_lb_rule" "publicLbRule" {
   loadbalancer_id                = azurerm_lb.publicLb.id
   name                           = "PublicLBRule"
   protocol                       = "Tcp"
-  frontend_port                  = 8080
-  backend_port                   = 8080
+  frontend_port                  = var.frontPort
+  backend_port                   = var.frontPort
   disable_outbound_snat          = true
   frontend_ip_configuration_name = azurerm_lb.publicLb.frontend_ip_configuration[0].name
   backend_address_pool_id        = azurerm_lb_backend_address_pool.publicLbPool.id
@@ -240,7 +240,7 @@ resource "azurerm_lb_probe" "privateLbProbe" {
   resource_group_name = module.projBase.rg_name
   loadbalancer_id     = azurerm_lb.privateLb.id
   name                = "5432-running-probe"
-  port                = 5432
+  port                = var.backPort
 }
 
 #private load balancer load balancing rule:
@@ -249,8 +249,8 @@ resource "azurerm_lb_rule" "privateLbRule" {
   loadbalancer_id                = azurerm_lb.privateLb.id
   name                           = "privateLBRule"
   protocol                       = "Tcp"
-  frontend_port                  = 5432
-  backend_port                   = 5432
+  frontend_port                  = var.backPort
+  backend_port                   = var.backPort
   frontend_ip_configuration_name = azurerm_lb.privateLb.frontend_ip_configuration[0].name
   backend_address_pool_id        = azurerm_lb_backend_address_pool.privateLbPool.id
   probe_id                       = azurerm_lb_probe.privateLbProbe.id
