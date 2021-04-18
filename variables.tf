@@ -88,3 +88,13 @@ variable "dataNsgPorts" {
   description = "list of ports open on the private subnet's nsg"
   type = list
 }
+
+variable "frontPort" {
+  description = "main port for public parts"
+  type = number
+}
+
+variable "backPort" {
+  description = "main port for private parts"
+  type = number
+}
