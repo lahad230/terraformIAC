@@ -54,7 +54,7 @@ resource "azurerm_linux_virtual_machine" "Vm" {
 
   provisioner "remote-exec" {
     inline = [
-      "bash /tmp/front.sh -u dev-60980327.okta.com -i 0oac1bu11EHLMiOZt5d6 -s Xaf6-PZ4CnPn847fqkLnKnPWQ_L4LQh1Kl5fEG2e -h ${var.fqdn} -p p@ssw0rd42"
+      "bash /tmp/front.sh"
     ]
     connection {
       type     = "ssh"
